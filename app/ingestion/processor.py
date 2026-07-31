@@ -23,6 +23,7 @@ PROCESSED_DATA_DIR = "processed_data"
 qdrant_client = QdrantClient(
     url=settings.QDRANT_URL,
     api_key=settings.QDRANT_API_KEY,
+    timeout = 600,
 )
 
 def save_processed_locally(data: dict, source_type: str, filename: str) -> str:
@@ -92,10 +93,14 @@ def process_file(file_path: str, filename: str, source_type: str):
                     for chunk, vector in zip(chunks, embeddings)
                 ]
 
-                qdrant_client.upsert(
-                    collection_name=settings.QDRANT_COLLECTION,
-                    points=points,
-                )
+                batch_size = 20
+
+                for i in range(0, len(points), batch_size):
+                    qdrant_client.upsert(
+                        collection_name=settings.QDRANT_COLLECTION,
+                        points=points[i:i + batch_size],
+                    )
+
                 logfire.info(f"Indexed {len(points)} points to Qdrant from {filename}.")
 
         except Exception as e:
@@ -111,6 +116,16 @@ def process_directory(dir_path: str, source_type: str):
         logfire.info(f"Found {len(files)} files in {dir_path}.")
         for filename in files:
             process_file(os.path.join(dir_path, filename), filename, source_type)
+
+
+def process_single_file(file_path: str, source_type: str):
+    """Process a single file."""
+
+    filename = os.path.basename(file_path)
+
+    with logfire.span("Processing Single File", file=filename, source=source_type):
+        process_file(file_path, filename, source_type)
+
 
 
 def run_universal_ingestion(base_dir: str, explicit_source_type: str = None, wipe: bool = False):
@@ -141,6 +156,18 @@ def run_universal_ingestion(base_dir: str, explicit_source_type: str = None, wip
                 f"Created collection '{settings.QDRANT_COLLECTION}' "
                 f"({dim}-dim, Cosine)."
             )
+        # If a single file is provided
+        if os.path.isfile(base_dir):
+
+            if explicit_source_type:
+                source_type = explicit_source_type
+            else:
+                source_type = "general"
+
+            logfire.info(f"Single file detected: {base_dir}")
+            process_single_file(base_dir, source_type)
+            return
+
 
         # Route to sub-folders or treat the whole dir as one source
         subdirs = [
