@@ -21,7 +21,7 @@ def route_planner(state: AgentState):
     Routes the workflow based on the planner's decision.
     """
     if state["current_query"] == "CONVERSATIONAL":
-        return "responder" 
+        return "responder"
     return "retriever"
 
 workflow.set_entry_point("planner")
@@ -48,4 +48,4 @@ checkpointer = MemorySaver()
 
 
 # 4. Compile the Graph with Memory
-rag_agent = workflow.compile(checkpointer=checkpointer)  
+rag_agent = workflow.compile(checkpointer=checkpointer)
