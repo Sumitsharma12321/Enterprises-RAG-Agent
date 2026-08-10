@@ -23,5 +23,19 @@ class Settings:
     GROQ_SLUG = "enterprise-rag"   # primary: "@enterprise-rag/llama-3.3-70b-versatile"
     GROQ_SLUG_2 = "enterprise-rag2"  # fallback:"@enterprise-rag2/llama-3.1-8b-instant"
 
+     
+    # --- OBSERVABILITY ---
+    LANGSMITH_TRACING = os.getenv("LANGSMITH_TRACING", "true")
+    LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
+    LANGSMITH_PROJECT = os.getenv("LANGSMITH_PROJECT", "enterprises_rag_agent")
+    LANGSMITH_ENDPOINT = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
+
+# Apply LangChain environment variables for automatic tracing
+os.environ["LANGCHAIN_TRACING_V2"] = os.getenv("LANGSMITH_TRACING", "true")
+os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGSMITH_API_KEY", "")
+os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGSMITH_PROJECT", "enterprises_rag_agent")
+os.environ["LANGCHAIN_ENDPOINT"] = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
+
+
 settings = Settings()
   
