@@ -43,8 +43,14 @@ def generate_node(state: AgentState):
                 break
 
         prompt = f"""
-        You are a Senior Technical Architect.
-        Answer the question using the TECHNICAL CONTEXT provided.
+        You are a Senior Technical Architect. Answer the user's question using ONLY the information present in the TECHNICAL CONTEXT below.
+
+        STRICT RULES:
+        - Do NOT use any external knowledge, training data, or assumptions beyond what is explicitly stated in the context.
+        - If the context does not contain enough information to answer the question, respond exactly with: "I don't have enough information in the knowledge base to answer this question."
+        - Do not guess, infer, or fill gaps using general knowledge — even if you know the answer from elsewhere.
+        - Base every claim strictly on the TECHNICAL CONTEXT provided.
+
 
         TECHNICAL CONTEXT:
         {full_context}
