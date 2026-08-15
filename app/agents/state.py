@@ -11,5 +11,3 @@ class AgentState(TypedDict):
     plan: List[str]
     status: str
     final_answer: str
-
-    # to maintain the flow of the agentic behaviour . we are maintaining a state
