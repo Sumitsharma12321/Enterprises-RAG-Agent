@@ -8,7 +8,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models
 
 from app.config import settings
-from app.services.retrieval.embeddings import embed_texts, get_embedding_dim
+from app.services.retrieval.embedding import embed_texts, get_embedding_dim
 from app.ingestion.loaders.pdf import parse_pdf
 from app.ingestion.loaders.html import parse_html
 from app.ingestion.loaders.text import parse_text
@@ -23,13 +23,12 @@ PROCESSED_DATA_DIR = "processed_data"
 qdrant_client = QdrantClient(
     url=settings.QDRANT_URL,
     api_key=settings.QDRANT_API_KEY,
-    timeout = 600,
+    timeout=60
 )
 
+
 def save_processed_locally(data: dict, source_type: str, filename: str) -> str:
-
     """Save parsed chunk metadata as JSON in processed_data/<source_type>/."""
-
     folder = os.path.join(PROCESSED_DATA_DIR, source_type)
     os.makedirs(folder, exist_ok=True)
     dest = os.path.join(folder, f"{filename}.json")
@@ -39,9 +38,7 @@ def save_processed_locally(data: dict, source_type: str, filename: str) -> str:
 
 
 def process_file(file_path: str, filename: str, source_type: str):
-
     """Parse → chunk → save locally → embed → index in Qdrant."""
-
     with logfire.span("Processing File", file=filename, source=source_type):
         try:
             # 1. Extract text based on file extension
@@ -93,14 +90,10 @@ def process_file(file_path: str, filename: str, source_type: str):
                     for chunk, vector in zip(chunks, embeddings)
                 ]
 
-                batch_size = 20
-
-                for i in range(0, len(points), batch_size):
-                    qdrant_client.upsert(
-                        collection_name=settings.QDRANT_COLLECTION,
-                        points=points[i:i + batch_size],
-                    )
-
+                qdrant_client.upsert(
+                    collection_name=settings.QDRANT_COLLECTION,
+                    points=points,
+                )
                 logfire.info(f"Indexed {len(points)} points to Qdrant from {filename}.")
 
         except Exception as e:
@@ -108,24 +101,12 @@ def process_file(file_path: str, filename: str, source_type: str):
 
 
 def process_directory(dir_path: str, source_type: str):
-
     """Process every file in a directory."""
-
     with logfire.span("Scanning Directory", path=dir_path, source=source_type):
         files = [f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
         logfire.info(f"Found {len(files)} files in {dir_path}.")
         for filename in files:
             process_file(os.path.join(dir_path, filename), filename, source_type)
-
-
-def process_single_file(file_path: str, source_type: str):
-    """Process a single file."""
-
-    filename = os.path.basename(file_path)
-
-    with logfire.span("Processing Single File", file=filename, source=source_type):
-        process_file(file_path, filename, source_type)
-
 
 
 def run_universal_ingestion(base_dir: str, explicit_source_type: str = None, wipe: bool = False):
@@ -156,18 +137,15 @@ def run_universal_ingestion(base_dir: str, explicit_source_type: str = None, wip
                 f"Created collection '{settings.QDRANT_COLLECTION}' "
                 f"({dim}-dim, Cosine)."
             )
-        # If a single file is provided
+
+        # ── YE BLOCK ADD KARO ──────────────────────────────────
         if os.path.isfile(base_dir):
-
-            if explicit_source_type:
-                source_type = explicit_source_type
-            else:
-                source_type = "general"
-
+            source_type = explicit_source_type if explicit_source_type else "general"
             logfire.info(f"Single file detected: {base_dir}")
-            process_single_file(base_dir, source_type)
+            filename = os.path.basename(base_dir)
+            with logfire.span("Processing Single File", file=filename, source=source_type):
+                process_file(base_dir, filename, source_type)
             return
-
 
         # Route to sub-folders or treat the whole dir as one source
         subdirs = [
