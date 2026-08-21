@@ -56,6 +56,7 @@ def get_embedding_dim() -> int:
 
 # ── Batch embedding with retry ─────────────────────────────────────────────────
 
+
 def _embed_batch(batch: list[str]) -> list[list[float]]:
     if _model_type == "gemini":
         # Exponential backoff: 1 s → 2 s → 4 s → 8 s (4 attempts total)
