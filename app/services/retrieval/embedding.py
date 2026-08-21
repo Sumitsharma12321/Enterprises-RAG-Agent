@@ -4,6 +4,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from app.config import settings
 
 BATCH_SIZE = 50
+EMBEDDING_CALL_DELAY_MS = 100
 _GEMINI_DIM = 3072
 _FALLBACK_DIM = 768  # all-mpnet-base-v2
 
@@ -90,9 +91,23 @@ def embed_query(query: str) -> list[float]:
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
     _init()
+
     all_embeddings: list[list[float]] = []
+
     for i in range(0, len(texts), BATCH_SIZE):
         batch = texts[i : i + BATCH_SIZE]
-        with logfire.span("Embed batch", model=_model_type, start=i, size=len(batch)):
-            all_embeddings.extend(_embed_batch(batch))
+
+        with logfire.span(
+            "Embed batch",
+            model=_model_type,
+            start=i,
+            size=len(batch)
+        ):
+            embeddings = _embed_batch(batch)
+            all_embeddings.extend(embeddings)
+
+        # Delay between Gemini embedding batches
+        if _model_type == "gemini" and i + BATCH_SIZE < len(texts):
+            time.sleep(EMBEDDING_CALL_DELAY_MS / 1000)
+
     return all_embeddings
